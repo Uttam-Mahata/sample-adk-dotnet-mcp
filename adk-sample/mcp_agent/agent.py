@@ -23,7 +23,7 @@ TARGET_FOLDER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "/
 # If you created ./adk_agent_samples/mcp_agent/your_folder,
 
 root_agent = LlmAgent(
-    model='gemini-2.0-flash',
+    model='gemini-2.5-flash',
     name='weather',
     instruction='Help to provide weather details ',
     tools=[
