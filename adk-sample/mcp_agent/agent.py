@@ -18,12 +18,12 @@ load_dotenv()
 # For this example, we'll construct a path relative to this file,
 # assuming '/path/to/your/folder' is in the same directory as agent.py.
 # REPLACE THIS with an actual absolute path if needed for your setup.
-TARGET_FOLDER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "/home/uttamm/adk-dotnet-mcp/weather")
+TARGET_FOLDER_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "/home/uttam/sample-adk-dotnet-mcp/weather")
 # Ensure TARGET_FOLDER_PATH is an absolute path for the MCP server.
 # If you created ./adk_agent_samples/mcp_agent/your_folder,
 
 root_agent = LlmAgent(
-    model='gemini-2.0-flash',
+    model='gemini-2.5-flash',
     name='weather',
     instruction='Help to provide weather details ',
     tools=[
@@ -32,7 +32,7 @@ root_agent = LlmAgent(
                 server_params = StdioServerParameters(
                     command='dotnet',
                     args=[
-                       "run", "--project", "/home/uttamm/adk-dotnet-mcp/weather", "--no-build",
+                       "run", "--project", "/home/uttam/sample-adk-dotnet-mcp/weather", "--no-build",
                         # IMPORTANT: This MUST be an ABSOLUTE path to a folder the
                         # npx process can access.
                         # Replace with a valid absolute path on your system.
