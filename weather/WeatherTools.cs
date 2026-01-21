@@ -8,52 +8,66 @@ namespace QuickstartWeatherServer.Tools;
 [McpServerToolType]
 public static class WeatherTools
 {
-    [McpServerTool, Description("Get weather alerts for a India State.")]
-    public static async Task<string> GetAlerts(
+    [McpServerTool, Description("Get the latitude and longitude for a city name.")]
+    public static async Task<string> GetLocation(
         HttpClient client,
-        [Description("The India state code to get alerts for.")] string state)
+        [Description("The name of the city (e.g., 'Kolkata', 'London').")] string city)
     {
-        using var jsonDocument = await client.ReadJsonDocumentAsync($"/alerts/active/area/{state}");
-        var jsonElement = jsonDocument.RootElement;
-        var alerts = jsonElement.GetProperty("features").EnumerateArray();
+        // Open-Meteo Geocoding API
+        var url = $"https://geocoding-api.open-meteo.com/v1/search?name={Uri.EscapeDataString(city)}&count=1&language=en&format=json";
+        
+        using var jsonDocument = await client.ReadJsonDocumentAsync(url);
+        var root = jsonDocument.RootElement;
 
-        if (!alerts.Any())
+        if (!root.TryGetProperty("results", out var results) || results.GetArrayLength() == 0)
         {
-            return "No active alerts for this state.";
+            return $"No location found for '{city}'.";
         }
 
-        return string.Join("\n--\n", alerts.Select(alert =>
-        {
-            JsonElement properties = alert.GetProperty("properties");
-            return $"""
-                    Event: {properties.GetProperty("event").GetString()}
-                    Area: {properties.GetProperty("areaDesc").GetString()}
-                    Severity: {properties.GetProperty("severity").GetString()}
-                    Description: {properties.GetProperty("description").GetString()}
-                    Instruction: {properties.GetProperty("instruction").GetString()}
-                    """;
-        }));
+        var location = results[0];
+        var name = location.GetProperty("name").GetString();
+        var country = location.TryGetProperty("country", out var c) ? c.GetString() : "Unknown";
+        var lat = location.GetProperty("latitude").GetDouble();
+        var lon = location.GetProperty("longitude").GetDouble();
+
+        return $"""
+                Found: {name}, {country}
+                Latitude: {lat}
+                Longitude: {lon}
+                """;
     }
 
-    [McpServerTool, Description("Get weather forecast for a location.")]
+    [McpServerTool, Description("Get the current weather forecast for a location (latitude/longitude).")]
     public static async Task<string> GetForecast(
         HttpClient client,
         [Description("Latitude of the location.")] double latitude,
         [Description("Longitude of the location.")] double longitude)
     {
-        var pointUrl = string.Create(CultureInfo.InvariantCulture, $"/points/{latitude},{longitude}");
-        using var jsonDocument = await client.ReadJsonDocumentAsync(pointUrl);
-        var forecastUrl = jsonDocument.RootElement.GetProperty("properties").GetProperty("forecast").GetString()
-            ?? throw new Exception($"No forecast URL provided by {client.BaseAddress}points/{latitude},{longitude}");
+        // Open-Meteo Weather API
+        var url = string.Create(CultureInfo.InvariantCulture, 
+            $"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m");
 
-        using var forecastDocument = await client.ReadJsonDocumentAsync(forecastUrl);
-        var periods = forecastDocument.RootElement.GetProperty("properties").GetProperty("periods").EnumerateArray();
+        using var jsonDocument = await client.ReadJsonDocumentAsync(url);
+        var root = jsonDocument.RootElement;
+        
+        if (!root.TryGetProperty("current", out var current))
+        {
+             return "Could not retrieve current weather data.";
+        }
 
-        return string.Join("\n---\n", periods.Select(period => $"""
-                {period.GetProperty("name").GetString()}
-                Temperature: {period.GetProperty("temperature").GetInt32()}°F
-                Wind: {period.GetProperty("windSpeed").GetString()} {period.GetProperty("windDirection").GetString()}
-                Forecast: {period.GetProperty("detailedForecast").GetString()}
-                """));
+        var temp = current.GetProperty("temperature_2m").GetDouble();
+        var wind = current.GetProperty("wind_speed_10m").GetDouble();
+        var time = current.GetProperty("time").GetString();
+
+        var currentUnits = root.GetProperty("current_units");
+        var tempUnit = currentUnits.GetProperty("temperature_2m").GetString();
+        var windUnit = currentUnits.GetProperty("wind_speed_10m").GetString();
+
+        return $"""
+                Time: {time}
+                Temperature: {temp} {tempUnit}
+                Wind Speed: {wind} {windUnit}
+                (Source: Open-Meteo)
+                """;
     }
 }
