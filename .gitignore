@@ -11,3 +11,7 @@ __pycache__/
 *.log
 *.logs
 coverage/
+
+*sesssion.db
+*/*session.db
+\
